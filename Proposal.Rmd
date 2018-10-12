@@ -1,0 +1,25 @@
+---
+title: "Project Proposal"
+author: "Qi Qi"
+date: "10/12/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Background
+An open challenge stated in the Quality Engineering Journal: there is a key quality characteristic that is measured once on a medical device component. The characteristic is crucial to ensure that the device will perform as intended. The value has to be sufficiently small to provide a real benefit to the patient. 
+
+# Data Set
+We have extensive history on this characteristic with 1500 data points representing several years of a manufacturing process history. Close inspection of the data reveals that there are a few data points that fall outside of the specification, which is problematic. It appears that there is some skewness on the right side of the distribution, which may be the reason for the data points that fall outside of the specification. Although the frequency of points outside the specification is low, it is crucial to reduce this frequency in order to ensure a high level of quality.
+
+A small experiment was done with 60 total samples, where 30 of them had the root cause and 30 did not. Experimental data shows significant difference in the mean response between these two groups. 
+
+# Purpose
+Root cause is a possible factor leading to the skewness but this factor is not observed in the data set. So the purpose is to identify whether each subject belongs to root cause group or not, and estimate the frequency of root cause in the historical data set.
+
+# Proposed Mehtod
+
+I plan to assume the population with a mixture of Gaussian distribution and use EM-algorithm to estimate the parameters. As long as I can obtain the estimator of proportion fractions, then the frequency of root cause is able to be estimated.
