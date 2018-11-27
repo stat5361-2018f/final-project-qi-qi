@@ -59,13 +59,12 @@ $$\xi_k=\frac{1}{n}\sum_{i=1}^nw_{ik}$$
 ### Implement in R
 
 ```{r}
-
 mynormalmixEM <- function(x, xi1, xi2, mu1, mu2, sigma1, sigma2, maxit, tol){
   n <- length(x)
   w1 <- double(n)
   w2 <- double(n)
   for (i in 1:maxit){
-    for (j in 1:n){
+     for (j in 1:n){
       w1[j] <- xi1 * dnorm(x[j], mu1, sigma1) / (xi1 * dnorm(x[j], mu1, sigma1) + xi2 * dnorm(x[j], mu2, sigma2))
       w2[j] <- 1 - w1[j]
     }
@@ -73,8 +72,8 @@ mynormalmixEM <- function(x, xi1, xi2, mu1, mu2, sigma1, sigma2, maxit, tol){
     xi2new <- mean(w2)
     mu1new <- sum(w1 * x) / sum(w1)
     mu2new <- sum(w2 * x) / sum(w2)
-    sigma1new <- sum(w1 * (x - mu1new)^2) / sum(w1)
-    sigma2new <- sum(w2 * (x - mu2new)^2) / sum(w2)
+    sigma1new <- sqrt(sum(w1 * (x - mu1new)^2) / sum(w1))
+    sigma2new <- sqrt(sum(w2 * (x - mu2new)^2) / sum(w2))
     if (max(abs(xi1new - xi1), abs(xi2new - xi2), abs(mu1new - mu1), abs(mu2new - mu2), abs(sigma1new - sigma1), abs(sigma2new- sigma2)) < tol){
       xi <- c(xi1new, xi2new)
       mu <- c(mu1new, mu2new)
@@ -90,9 +89,28 @@ mynormalmixEM <- function(x, xi1, xi2, mu1, mu2, sigma1, sigma2, maxit, tol){
     sigma2 <- sigma2new
   }
 }
-  
-mynormalmixEM(test$Response, .5, .5, 100, 100, 1, 1, 1e5, 1e-5)  
-  
+
+mixnormal <- function(n, xi, mu1, mu2, sigma1, sigma2){
+  x <- double(n)
+  for (i in 1:n){
+    u <- runif(1)
+    x[i] <- rnorm(1, ifelse(u < xi, mu1, mu2), ifelse(u < xi, sigma1, sigma2))
+  }
+  x
+}
+## simulated data
+data <- mixnormal(1000, .6, 3, 8, 1, 1)
+mynormalmixEM(data, .5, .5, 6, 7, 1, 4, 1e5, 1e-5)  
+out.1 <- normalmixEM(data, arbvar = FALSE, epsilon = 1e-03, fast=TRUE)
+summary(out.1)
+fit.1 <- mixfit(data, ncomp = 2, family = "normal")
+fit.1
+
+
+## real data
+mynormalmixEM(test$Response, .5, .5, 100, 110, 3, 5, 1e5, 1e-5)  
+mynormalmixEM(dat$Response, .5, .5, 100, 110, 3, 5, 1e5, 1e-5) 
+
 ## Using "mixtools" package
 out.1 <- normalmixEM(test$Response, arbvar = FALSE, epsilon = 1e-03, fast=TRUE)
 summary(out.1)
