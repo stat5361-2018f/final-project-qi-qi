@@ -1,0 +1,101 @@
+---
+title: "Report"
+author: "Qi Qi"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library("dplyr")
+library("ggpubr")
+library("goft")
+library("mclust")
+library("mixtools")
+library("mixR")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Distribution of Experimental Data
+Test the normality of experimental data set:
+
+```{r}
+test <- read.csv("Data for Root Cause Determination - Test Data.csv")
+dat <- read.csv("Data for Root Cause Determination.csv")
+ggqqplot(test[test$Group == "Test Group - Root Cause",]$Response)
+shapiro.test(test[test$Group == "Test Group - Root Cause",]$Response)
+ggqqplot(test[test$Group == "Test Group - No Root Cause",]$Response)
+shapiro.test(test[test$Group == "Test Group - No Root Cause",]$Response)
+
+```
+
+From above result, we know for each group the data is normally distributed. Since sample size is 30 in each group, we do not have much power. Then I also test goodness of fit of Gamma distribution:
+
+
+```{r}
+gamma_test(test[test$Group == "Test Group - Root Cause",]$Response)
+gamma_test(test[test$Group == "Test Group - No Root Cause",]$Response)
+```
+Above results also show gamma distribution fits the data set.
+
+Then I propose mixed normal distribution and mixed gamma distribution of original data set.
+
+## Mixture of Normal Distributions
+
+Let $z_i$ be the index of the Gaussian distribution from which $x_i$ is sampled. The parameters to be estimated is $(\mu_1, \mu_2,\sigma_1^2, \sigma_2^2,\xi_1,\xi_2)$, where $\xi_1+\xi_2=1$. Let $\theta_t=(\mu_{t1}, \mu_{t2},\sigma_{t1}^2, \sigma_{t2}^2,\xi_{t1},\xi_{t2})$
+$$Q(\theta|\theta_t)=\sum_zp(z|x,\theta_t)\ln p(x,z|\theta)=\sum_{i=1}^n\sum_{k=1}^2p(z_i=k|x_i,\theta_t)\ln p(x_i,z_i=k|\theta)$$
+Let $w_{ik}=p(z_i=k|x_i,\theta_t)$, then
+$$w_{ik}=\frac{p(z_i=k,x_i,|\theta_t)}{\sum_{k=1}^2p(z_i=k,x_i|\theta_t)}=\frac{\xi_{tk}\phi(x_i|\mu_{tk},\sigma_{tk}^2)}{\sum_{k=1}^2\xi_{tk}\phi(x_i|\mu_{tk},\sigma_{tk}^2)}$$
+$$Q(\theta|\theta_t)=\sum_{k=1}^2\sum_{i=1}^nw_{ik}\ln (\xi_k/\sqrt{2\pi})-\frac{1}{2}\sum_{k=1}^2\sum_{i=1}^nw_{ik}\ln \sigma_k^2-\frac{1}{2}\sum_{k=1}^2\sum_{i=1}^nw_{ik}\frac{(x_i-\mu_k)^2}{\sigma_k^2}$$
+$$\frac{\partial Q(\theta|\theta_t)}{\partial \mu_k}=0 \Rightarrow \mu_k=\frac{\sum_{i=1}^nw_{ik}x_i}{\sum_{i=1}^nw_{ik}}$$
+$$\frac{\partial Q(\theta|\theta_t)}{\partial \sigma_k^2}=0 \Rightarrow \sigma_k^2=\frac{\sum_{i=1}^nw_{ik}(x_i-\mu_k)^2}{\sum_{i=1}^nw_{ik}}$$
+$$\xi_k=\frac{1}{n}\sum_{i=1}^nw_{ik}$$
+
+
+```{r}
+out.1 <- normalmixEM(test$Response, arbvar = FALSE, epsilon = 1e-03, fast=TRUE)
+summary(out.1)
+plot(out.1, density = TRUE, w = 1.1)
+
+out.2 <- normalmixEM(dat$Response, arbvar = FALSE, epsilon = 1e-03, fast=TRUE)
+summary(out.2)
+plot(out.2, density = TRUE, w = 1.1)
+
+fit.1 <- mixfit(test$Response, ncomp = 2, family = "normal")
+fit.1
+plot(fit.1)
+
+fit.2 <- mixfit(dat$Response, ncomp = 2, family = "normal")
+fit.2
+plot(fit.2)
+```
+
+## Mixture of Gamma Distributions
+
+Let $z_i$ be the index of the Gaussian distribution from which $x_i$ is sampled. The parameters to be estimated is $(\alpha_1, \alpha_2,\beta_1, \beta_2,\xi_1,\xi_2)$, where $\xi_1+\xi_2=1$. Let $\theta_t=(\alpha_{t1}, \alpha_{t2},\beta_{t1}, \beta_{t2},\xi_{t1},\xi_{t2})$
+$$Q(\theta|\theta_t)=\sum_zp(z|x,\theta_t)\ln p(x,z|\theta)=\sum_{i=1}^n\sum_{k=1}^2p(z_i=k|x_i,\theta_t)\ln p(x_i,z_i=k|\theta)$$
+Let $w_{ik}=p(z_i=k|x_i,\theta_t)$, then
+$$w_{ik}=\frac{p(z_i=k,x_i,|\theta_t)}{\sum_{k=1}^2p(z_i=k,x_i|\theta_t)}=\frac{\xi_{tk}\Gamma(x_i|\alpha_{tk},\beta_{tk})}{\sum_{k=1}^2\xi_{tk}\Gamma(x_i|\alpha_{tk},\beta_{tk})}$$
+$$Q(\theta|\theta_t)=\sum_{k=1}^2\sum_{i=1}^nw_{ik}\ln \xi_k-\sum_{k=1}^2\sum_{i=1}^nw_{ik}\ln \Gamma(\alpha_k)-\sum_{k=1}^2\sum_{i=1}^nw_{ik}\alpha_k \ln \beta_k +\sum_{k=1}^2\sum_{i=1}^nw_{ik}(\alpha_k-1)\ln x_i-\sum_{k=1}^2\sum_{i=1}^n\frac{w_{ik}x_i}{\beta_k}$$
+$$\frac{\partial Q(\theta|\theta_t)}{\partial\beta_k}=0 \Rightarrow \beta_k=\frac{\sum_{i=1}^nw_{ik}x_i}{\alpha_k\sum_{i=1}^nw_{ik}}$$
+$$\xi_k=\frac{1}{n}\sum_{i=1}^nw_{ik}$$
+
+
+```{r}
+out.1 <- gammamixEM(test$Response)
+out.1$lambda
+out.1$gamma.pars
+
+
+out.2 <- gammamixEM(dat$Response)
+out.2$lambda
+out.2$gamma.pars
+
+fit.1 <- mixfit(test$Response, ncomp = 2, family = "gamma")
+fit.1
+plot(fit.1)
+
+fit.2 <- mixfit(dat$Response, ncomp = 2, family = "gamma")
+fit.2
+plot(fit.2)
+```
