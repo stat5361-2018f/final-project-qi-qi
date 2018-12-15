@@ -11,7 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Introduction
-An open challenge stated in the Quality Engineering Journal: there is a key quality characteristic that is measured once on a medical device component. The characteristic is crucial to ensure that the device will perform as intended. The value has to be sufficiently small to provide a real benefit to the patient. 
+An open challenge stated in the Quality Engineering Journal: there is a key quality characteristic that is measured once on a medical device component. The characteristic is crucial to ensure that the device will perform as intended. The value has to be sufficiently small to provide a real benefit to the patient. I used EM algorithm to determine the proportion of root cause. The maximum likelihood estimator of proportion of root cause is 0.32 and maximum likelihood estimator of proportion of not root cause is 0.68.
+
+# Data
 
 We have extensive history on this characteristic with 1500 data points representing several years of a manufacturing process history. Close inspection of the data reveals that there are a few data points that fall outside of the specification, which is problematic. It appears that there is some skewness on the right side of the distribution, which may be the reason for the data points that fall outside of the specification. Although the frequency of points outside the specification is low, it is crucial to reduce this frequency in order to ensure a high level of quality.
 
@@ -19,7 +21,9 @@ A small experiment was done with 60 total samples, where 30 of them had the root
 
 Root cause is a possible factor leading to the skewness but this factor is not observed in the data set. So the purpose is to identify whether each subject belongs to root cause group or not, and estimate the frequency of root cause in the historical data set.
 
-I assumed the population with a mixture of Gaussian distribution and use EM-algorithm to estimate the parameters. As long as I can obtain the estimator of proportion fractions, then the frequency of root cause is able to be estimated.
+# Method
+
+I assumed the population with a mixture of Gaussian distribution and use EM-algorithm to estimate the parameters. As long as I can obtain the estimator of proportion fractions, then the frequency of root cause is able to be estimated. I estimated the proportion on observed data first and then pooled observed data and experimental data together to estimate the proportion.
 
 # Distribution of Experimental Data
 
@@ -32,13 +36,7 @@ shapiro.test(test[test$Group == "Test Group - Root Cause",]$Response)
 shapiro.test(test[test$Group == "Test Group - No Root Cause",]$Response)
 ```
 
-From above result, we know for each group the data is normally distributed. Since sample size is 30 in each group, we do not have much power. Then I also tested goodness of fit of Gamma distribution:
-
-```{r}
-gamma_test(test[test$Group == "Test Group - Root Cause",]$Response)
-gamma_test(test[test$Group == "Test Group - No Root Cause",]$Response)
-```
-Above results also show gamma distribution fits the data set.
+From above result, we know for each group the data is normally distributed. 
 
 Then I propose mixed normal distribution and mixed gamma distribution of original data set.
 
@@ -174,13 +172,13 @@ From above results, the functions I created to estimate parameters of mixed norm
 ```{r}
 ## experimental data
 mynormalmixEM(test$Response, .7, .3, 100, 110, 3, 5, 1e5, 1e-5)
-## experimental data (pretend unknown classification) & experimental data (known classification)
+## experimental data (pretend unknown classification) and experimental data (known classification)
 mynormalpoolEM(test$Response, test, .7, .3, 100, 110, 3, 5, 1e5, 1e-5)
 
 ## observed data (unknown classification)
 mynormalmixEM(dat$Response, .7, .3, 100, 110, 3, 5, 1e5, 1e-5) 
 
-## observed data (unknown classification) & experimental data (known classification)
+## observed data (unknown classification) and experimental data (known classification)
 mynormalpoolEM(dat$Response, test, .7, .3, 100, 110, 3, 5, 1e5, 1e-5)
 ```
 
@@ -214,7 +212,49 @@ hist(dat$Response, probability = TRUE, ylim = c(0, .07))
 curve(f3, add = TRUE, col = "red")
 ```
 
-# Mixture of Gamma Distributions
+## Confidence Interval
+
+Using bootstrap to estimate confidence interval of proportion:
+
+```{r}
+mybootCI <- function(x, y, B){
+  n1 <- length(x)
+  n2 <- nrow(y)
+  p <- matrix(0, B, 2)
+  for (i in 1:B){
+    x1 <- sample(x, n1, replace = TRUE)
+    y1 <- y[sample(n2, n2, replace = TRUE), ]
+    p[i, ] <- unlist(mynormalpoolEM(x1, y, .7, .3, 100, 110, 3, 5, 1e5, 1e-5)[1])
+  }
+  pl <- apply(p, 2, function(x) quantile(x, 0.25))
+  pu <- apply(p, 2, function(x) quantile(x, 0.75))
+  ci1 <- c(pl[1], pu[1])
+  ci2 <- c(pl[2], pu[2])
+  return(list(ci1, ci2))
+}
+
+mybootCI(dat$Response, test, 1000)
+```
+
+# Discussion
+
+According to the results from pooled EM algorithm on simulation study and experimental data, using partial known classification information can improve the accuracy of estimation. From the histograms of observed data, the distribution from pooled EM algorithm fits the data better. Thus, the maximum likelihood estimator of proportion of root cause is 0.32 and maximum likelihood estimator of proportion of not root cause is 0.68.
+
+Since the Since sample size is only 30 in each group from experimental data, we do not have much power. I also tested goodness of fit of Gamma distribution and the results show gamma distribution also fits the data. I also proposed to use mixture of gamma distributions to estimate the proportion. The process and functions are attached in the appendix. The functions are not robust. For some initial value of parameters, the function will return error messages. My next step is to improve those two functions and estimate the proportion by mixed gamma distribution.
+
+
+# Appendix
+
+## Mixture of Gamma Distributions
+
+Goodness of fit test of Gamma distribution:
+
+```{r}
+gamma_test(test[test$Group == "Test Group - Root Cause",]$Response)
+gamma_test(test[test$Group == "Test Group - No Root Cause",]$Response)
+```
+
+Above results show gamma distribution also fits the data set.
 
 Let $z_i$ be the index of the Gaussian distribution from which $x_i$ is sampled. The parameters to be estimated is $(\alpha_1, \alpha_2,\beta_1, \beta_2,\xi_1,\xi_2)$, where $\xi_1+\xi_2=1$. Let $\theta_t=(\alpha_{t1}, \alpha_{t2},\beta_{t1}, \beta_{t2},\xi_{t1},\xi_{t2})$
 $$Q(\theta|\theta_t)=\sum_zp(z|x,\theta_t)\ln p(x,z|\theta)=\sum_{i=1}^n\sum_{k=1}^2p(z_i=k|x_i,\theta_t)\ln p(x_i,z_i=k|\theta)$$
@@ -232,7 +272,7 @@ If the classification of some data points is known, then some $w_{ik}$ are known
 Suppose $z_1,...,z_{n_1}$ are unknown, $z_{n_1+1}, ..., z_n$ are known, then $w_{1k},...,w_{n_1k}$ are estimated as above approach and $w_{(n_1+1)k},...,w_{nk}$ are equal to either 1 or 0 according to the value of $z_{n_1+1}, ..., z_n$.
 
 
-# Implement in R
+## Implement in R
 
 ```{r}
 mygammamixEM <- function(x, xi1, xi2, alpha1, alpha2, beta1, beta2, maxit, tol){
@@ -321,6 +361,3 @@ mygammapoolEM <- function(x, y, xi1, xi2, alpha1, alpha2, beta1, beta2, maxit, t
 
 ```
 
-# Discussion
-
-The functions for mixed gamma distribution is not robust. 
