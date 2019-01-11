@@ -159,13 +159,14 @@ normmix <- function(n, xi, mu1, mu2, sigma1, sigma2){
   z
 }
 
-data1 <- mixnormal(1000, .6, 3, 8, 1, 1)
-data2 <- normmix(1000, .6, 3, 8, 1, 1)
+data1 <- mixnormal(1500, .7, 3, 8, 1, 1)
+data2 <- normmix(60, .5, 3, 8, 1, 1)
+mynormalmixEM(data1, .5, .5, 6, 7, 1, 4, 1e5, 1e-5) 
 mynormalpoolEM(data1, data2, .5, .5, 2, 5, 1, 1, 1e5, 1e-5)
-
+(1500 * .7 + 60 * .5) / (1500 + 60)
 ```
 
-From above results, the functions I created to estimate parameters of mixed normal distribution with or without partial known classification can provide accurate results.
+From above results, the functions I created to estimate parameters of mixed normal distribution with partial known classification can provide accurate results.
 
 ## Real Data Analysis
 
@@ -317,6 +318,9 @@ mixgamma <- function(n, xi, alpha1, alpha2, beta1, beta2){
   x
 }
 
+data <- mixgamma(1000, .7, 3, 7, 1, 1)
+mynormalmixEM(data, .5, .5, 2, 4, 1, 1, 1e4, 1e-4)
+mygammamixEM(data, .7, .3, 3, 7, 1, 1, 1e4, 1e-4)
 
 mygammapoolEM <- function(x, y, xi1, xi2, alpha1, alpha2, beta1, beta2, maxit, tol){
   n <- length(x) + nrow(y)
@@ -359,5 +363,24 @@ mygammapoolEM <- function(x, y, xi1, xi2, alpha1, alpha2, beta1, beta2, maxit, t
   return(iter)
 }
 
+gammamix <- function(n, xi, alpha1, alpha2, beta1, beta2){
+  x <- double(n)
+  y <- double(n)
+  for (i in 1:n){
+    u <- runif(1)
+    x[i] <- rgamma(1, shape = ifelse(u < xi, alpha1, alpha2), scale = ifelse(u < xi, beta1, beta2))
+    y[i] <- ifelse(u < xi, "Test Group - No Root Cause", "Test Group - Root Cause")
+  }
+  z <- cbind.data.frame(x, y)
+  colnames(z) <- c("Response", "Group")
+  z
+}
+
+data1 <- mixgamma(1500, .7, 3, 8, 1, 1)
+data2 <- gammamix(60, .5, 3, 8, 1, 1)
+mynormalmixEM(data1, .5, .5, 6, 7, 1, 4, 1e5, 1e-5) 
+mynormalpoolEM(data1, data2, .5, .5, 2, 5, 1, 1, 1e5, 1e-5)
+(1500 * .7 + 60 * .5) / (1500 + 60)
+mixtools::gammamixEM(data1, k = 2)$lambda
 ```
 
