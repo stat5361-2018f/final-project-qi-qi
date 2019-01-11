@@ -381,6 +381,7 @@ data2 <- gammamix(60, .5, 3, 8, 1, 1)
 mynormalmixEM(data1, .5, .5, 6, 7, 1, 4, 1e5, 1e-5) 
 mynormalpoolEM(data1, data2, .5, .5, 2, 5, 1, 1, 1e5, 1e-5)
 (1500 * .7 + 60 * .5) / (1500 + 60)
-mixtools::gammamixEM(data1, k = 2)$lambda
+mixtools::gammamixEM(data1, k = 2, epsilon = 1e-4, maxit = 1e4)$lambda
+mixR::mixfit(data1, ncomp = 2, family = "gamma", tol = 1e-4, max_iter = 1e4)
 ```
 
